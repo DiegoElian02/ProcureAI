@@ -77,6 +77,22 @@ OPENAI_MODEL = "gpt-4o-mini"
 
 > La app también funciona sin API key usando el motor local de KPIs, pero la integración con OpenAI ayuda a redactar respuestas más naturales y ejecutivas.
 
+## Troubleshooting
+
+### Error `Client.__init__() got an unexpected keyword argument 'proxies'`
+
+Este error suele ocurrir cuando `openai` se instala junto con una versión incompatible de `httpx`. El proyecto fija `httpx==0.27.2` en `requirements.txt` para mantener compatibilidad con la versión de `openai` usada por la app.
+
+Si ya habías instalado dependencias antes del cambio, ejecuta:
+
+```bash
+pip install -r requirements.txt --upgrade --force-reinstall
+```
+
+### Warnings de fechas en pandas
+
+La detección de fechas solo intenta parsear columnas cuyo nombre parece representar una fecha, como `date`, `fecha` o `invoice_date`, para evitar warnings innecesarios al analizar columnas de texto como proveedores o productos.
+
 ## Preguntas de prueba sugeridas
 
 - ¿Cuál fue el profit total?

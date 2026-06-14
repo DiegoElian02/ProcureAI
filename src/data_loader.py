@@ -20,6 +20,9 @@ class DatasetProfile:
     recognized_columns: dict[str, str]
 
 
+DATE_COLUMN_HINTS = ("date", "fecha", "day", "month", "year")
+
+
 COLUMN_ALIASES = {
     "date": ["date", "fecha", "invoice_date", "order_date"],
     "provider": ["provider", "supplier", "vendor", "proveedor"],
@@ -63,9 +66,14 @@ def profile_dataset(df: pd.DataFrame) -> DatasetProfile:
     numeric_columns = df.select_dtypes(include="number").columns.tolist()
     date_columns: list[str] = []
     for column in df.columns:
-        if column in numeric_columns:
+        normalized_column = column.lower().strip().replace(" ", "_")
+        looks_like_date = normalized_column in COLUMN_ALIASES["date"] or any(
+            hint in normalized_column for hint in DATE_COLUMN_HINTS
+        )
+        if column in numeric_columns or not looks_like_date:
             continue
-        parsed = pd.to_datetime(df[column], errors="coerce")
+
+        parsed = pd.to_datetime(df[column], errors="coerce", format="mixed")
         if parsed.notna().mean() >= 0.7:
             date_columns.append(column)
 
