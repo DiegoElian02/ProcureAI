@@ -7,14 +7,15 @@ ProcureAI Insights es un chatbot en Streamlit para analizar archivos estructurad
 - Carga de archivos CSV, XLSX o XLS.
 - Detección básica de columnas principales como `provider`, `product`, `revenue`, `cost` y `spend`.
 - Vista previa del dataset cargado.
-- Preguntas en lenguaje natural para obtener insights de negocio.
+- Preguntas en lenguaje natural para obtener insights de negocio, incluyendo consultas abiertas que GPT traduce a código pandas.
 - Cálculo de KPIs mínimos:
   - Profit.
   - Spend.
   - Revenue.
   - Spend agrupado por proveedor.
   - Productos con mejor desempeño por revenue.
-- Respuestas determinísticas sin API key y respuestas mejoradas con OpenAI cuando se configura una key.
+  - Filtros temporales como “profit de marzo” o “revenue de 2026”.
+- Con OpenAI, generación de código pandas para extraer la información solicitada, ejecución validada de ese código y redacción final del insight. Sin API key, fallback determinístico para KPIs comunes.
 
 ## Estructura del proyecto
 
@@ -24,7 +25,8 @@ ProcureAI/
 ├── data/
 │   └── sample_procurement_data.csv # Dataset de prueba
 ├── src/
-│   ├── ai_client.py               # Integración opcional con OpenAI
+│   ├── ai_client.py               # Generación de código con OpenAI y redacción ejecutiva
+│   ├── code_executor.py           # Validador/ejecutor del código pandas generado
 │   ├── config.py                  # Lectura de secrets/env vars
 │   ├── data_loader.py             # Carga y perfilado de datos
 │   └── kpi_engine.py              # Interpretación simple y cálculo de KPIs
@@ -75,7 +77,7 @@ OPENAI_API_KEY = "pega_tu_api_key_aqui"
 OPENAI_MODEL = "gpt-4o-mini"
 ```
 
-> La app también funciona sin API key usando el motor local de KPIs, pero la integración con OpenAI ayuda a redactar respuestas más naturales y ejecutivas.
+> La app también funciona sin API key usando el motor local de KPIs. Con OpenAI, GPT genera código pandas específico para la pregunta, la app valida que no use imports, archivos, red, funciones/clases ni nombres peligrosos, y luego ejecuta ese código contra una copia del DataFrame cargado.
 
 ## Troubleshooting
 
@@ -95,6 +97,9 @@ La detección de fechas solo intenta parsear columnas cuyo nombre parece represe
 
 ## Preguntas de prueba sugeridas
 
+- ¿Cuál fue el profit de marzo?
+- ¿Cuál fue el revenue de abril?
+- ¿Qué proveedor tuvo mayor gasto en mayo?
 - ¿Cuál fue el profit total?
 - ¿Cuál fue el spend total?
 - ¿Qué proveedor tuvo mayor gasto?
@@ -106,6 +111,6 @@ La detección de fechas solo intenta parsear columnas cuyo nombre parece represe
 | ID | Cobertura |
 | --- | --- |
 | HU-01 | Carga CSV/Excel, validación de extensión, reconocimiento de columnas y preview. |
-| HU-02 | Campo de pregunta, preguntas de prueba e interpretación por palabras clave. |
+| HU-02 | Campo de pregunta, preguntas de prueba y generación de código pandas con OpenAI, con fallback por palabras clave/plan local. |
 | HU-03 | Cálculo de profit, spend, revenue y gasto por proveedor. |
 | HU-04 | Respuestas breves, claras y orientadas a decisiones de negocio. |

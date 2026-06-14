@@ -3,8 +3,9 @@ from __future__ import annotations
 import pandas as pd
 import streamlit as st
 
-from src.ai_client import has_api_key, polish_answer
+from src.ai_client import create_query_plan, generate_analysis_code, has_api_key, polish_answer
 from src.data_loader import load_file, profile_dataset
+from src.code_executor import execute_analysis_code, serialize_result
 from src.kpi_engine import answer_question
 
 
@@ -66,18 +67,56 @@ if st.button("Analizar", type="primary"):
         st.warning("Escribe o selecciona una pregunta para continuar.")
         st.stop()
 
-    result = answer_question(df, profile, final_question)
-    with st.spinner("Generando insight..."):
-        try:
-            answer = polish_answer(result.question, result.answer, result.details)
-        except Exception as exc:
+    generated_code = None
+    serialized_output = None
+    with st.spinner("Generando código, ejecutando análisis y preparando insight..."):
+        if has_api_key():
+            try:
+                generated_code = generate_analysis_code(final_question, df, profile)
+                code_result = execute_analysis_code(df, generated_code)
+                serialized_output = serialize_result(code_result.result)
+                details = {
+                    "mode": "openai_generated_pandas_code",
+                    "generated_code": generated_code,
+                    "raw_result": serialized_output,
+                    "insight": code_result.insight,
+                }
+                base_answer = code_result.insight or f"Resultado calculado: {serialized_output}"
+                answer = polish_answer(final_question, base_answer, details)
+                result_payload = {"intent": "generated_code", "details": details}
+            except Exception as exc:
+                st.warning(f"No se pudo completar el análisis con código generado por OpenAI. Se usará el motor local. Detalle: {exc}")
+                query_plan = None
+                try:
+                    query_plan = create_query_plan(final_question, df, profile)
+                except Exception:
+                    query_plan = None
+                result = answer_question(df, profile, final_question, query_plan=query_plan)
+                answer = result.answer
+                result_payload = {"intent": result.intent, "details": result.details}
+        else:
+            result = answer_question(df, profile, final_question)
             answer = result.answer
-            st.warning(f"No se pudo usar OpenAI, se muestra la respuesta calculada localmente. Detalle: {exc}")
+            result_payload = {"intent": result.intent, "details": result.details}
 
     st.markdown("### Respuesta")
     st.write(answer)
+
+    if generated_code:
+        with st.expander("Ver código pandas generado por GPT"):
+            st.code(generated_code, language="python")
+
+    if serialized_output is not None:
+        st.markdown("### Resultado calculado")
+        if isinstance(serialized_output, list):
+            st.dataframe(pd.DataFrame(serialized_output), use_container_width=True)
+        elif isinstance(serialized_output, dict):
+            st.json(serialized_output)
+        else:
+            st.write(serialized_output)
+
     st.markdown("### Detalles calculados")
-    st.json({"intent": result.intent, "details": result.details})
+    st.json(result_payload)
 
 st.divider()
 st.markdown("#### KPIs rápidos")
