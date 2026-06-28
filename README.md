@@ -87,7 +87,7 @@ OPENAI_MODEL = "gpt-4o-mini"
 
 ### Visualizaciones personalizadas
 
-Cuando la app tiene `OPENAI_API_KEY`, GPT genera dos piezas de código separadas: una para calcular el resultado y otra para preparar `chart_data`, `chart_type` y `chart_title`. La app valida y ejecuta ambas piezas de código contra una copia del DataFrame, y luego renderiza una gráfica relacionada con la pregunta específica.
+Cuando la app tiene `OPENAI_API_KEY`, GPT genera dos piezas de código separadas: una para calcular el resultado y otra para preparar `chart_data`, `chart_type` y `chart_title`. La app valida y ejecuta ambas piezas de código contra una copia del DataFrame, y luego renderiza una gráfica relacionada con la pregunta específica. Para preguntas de ranking o superlativos como “mejor proveedor” o “más rentable”, el prompt pide contexto comparativo —ranking completo si hay pocas categorías o top 10— en lugar de mostrar solo una barra.
 
 ## Troubleshooting
 
@@ -126,5 +126,5 @@ La detección de fechas solo intenta parsear columnas cuyo nombre parece represe
 | HU-04 | Respuestas breves, claras y orientadas a decisiones de negocio. |
 | HU-05 | Validación automática de columnas mínimas, errores bloqueantes y advertencias de columnas recomendadas. |
 | HU-06 | Catálogo de errores claros, breves y accionables para archivo, API key, columnas y preguntas. |
-| HU-07 | Gráficas personalizadas generadas por GPT para la pregunta, con fallback a visualizaciones simples y dashboard general. |
+| HU-07 | Gráficas personalizadas generadas por GPT para la pregunta, con ranking comparativo y fallback determinístico si la gráfica generada falla. |
 | HU-04R | Prompt de respuesta refinado con respuesta directa, insight de negocio y recomendación accionable. |

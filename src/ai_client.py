@@ -34,6 +34,19 @@ def _dataset_context(df: pd.DataFrame, profile: DatasetProfile) -> dict[str, Any
     }
 
 
+def _avoid_single_bar_chart(code: str) -> str:
+    """Avoid one-row context charts when GPT over-optimizes a ranking visualization."""
+    replacements = {
+        ".head(1)": ".head(10)",
+        ".tail(1)": ".tail(10)",
+        ".nlargest(1)": ".nlargest(10)",
+        ".nsmallest(1)": ".nsmallest(10)",
+    }
+    for source, target in replacements.items():
+        code = code.replace(source, target)
+    return code
+
+
 def generate_analysis_code(question: str, df: pd.DataFrame, profile: DatasetProfile) -> str:
     """Ask OpenAI to generate pandas code that answers the user's question."""
     response = _client().chat.completions.create(
@@ -91,12 +104,15 @@ def generate_visualization_code(
                 "content": (
                     "Eres un analista de datos experto en visualización para ProcureAI Insights. "
                     "Genera código pandas que prepare una gráfica directamente relacionada con la pregunta del usuario. "
+                    "Piensa como analista: la gráfica debe dar contexto y comparación, no solo repetir el único valor de la respuesta. "
                     "Usa exclusivamente el DataFrame `df` ya cargado y pandas como `pd`. "
                     "No incluyas markdown, explicaciones, imports, lectura/escritura de archivos, llamadas de red, loops, funciones ni clases. "
                     "El código debe asignar obligatoriamente `chart_data` con una Serie o DataFrame listo para Streamlit. "
                     "También asigna `chart_type` como uno de: 'bar', 'line', 'area' o 'scatter', y `chart_title` con un título breve. "
                     "Si la pregunta pide tendencia o tiempo, usa gráfica line y agrupa por mes/fecha. "
                     "Si pide comparación, ranking, proveedor, producto o categoría, usa gráfica bar y agrupa por la dimensión solicitada. "
+                    "Si la pregunta usa superlativos como mejor, mayor, más rentable o top, NO uses head(1): muestra el ranking completo si tiene 10 categorías o menos, o top 10 si hay más. "
+                    "Para proveedor más rentable, grafica profit por proveedor, no revenue por proveedor: profit = revenue - cost si existen esas columnas; si no, revenue - spend. "
                     "Si necesitas fechas, crea columnas temporales con `pd.to_datetime(..., errors='coerce', format='mixed')`. "
                     "Usa exactamente los nombres de columnas del esquema."
                 ),
@@ -110,7 +126,7 @@ def generate_visualization_code(
                         "analysis_result": analysis_result,
                         "valid_examples": [
                             "df['_date'] = pd.to_datetime(df['date'], errors='coerce', format='mixed')\nchart_data = df.groupby(df['_date'].dt.to_period('M').astype(str))['revenue'].sum()\nchart_type = 'line'\nchart_title = 'Revenue mensual'",
-                            "chart_data = df.groupby('provider')['spend'].sum().sort_values(ascending=False).head(10)\nchart_type = 'bar'\nchart_title = 'Top proveedores por spend'",
+                            "df['profit'] = df['revenue'] - df['cost']\nchart_data = df.groupby('provider')['profit'].sum().sort_values(ascending=False).head(10)\nchart_type = 'bar'\nchart_title = 'Rentabilidad por proveedor'",
                         ],
                     },
                     ensure_ascii=False,
@@ -120,7 +136,8 @@ def generate_visualization_code(
         ],
     )
     code = response.choices[0].message.content or ""
-    return code.strip().removeprefix("```python").removeprefix("```").removesuffix("```").strip()
+    clean_code = code.strip().removeprefix("```python").removeprefix("```").removesuffix("```").strip()
+    return _avoid_single_bar_chart(clean_code)
 
 
 def create_query_plan(question: str, df: pd.DataFrame, profile: DatasetProfile) -> dict[str, Any]:

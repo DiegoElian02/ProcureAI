@@ -95,3 +95,45 @@ def render_custom_chart(chart_data: Any, chart_type: str, chart_title: str | Non
         st.scatter_chart(data)
     else:
         st.bar_chart(data)
+
+
+def render_question_fallback_chart(df: pd.DataFrame, profile: DatasetProfile, question: str) -> bool:
+    """Render a deterministic chart related to the question when GPT chart code fails."""
+    q = question.lower()
+    provider_col = profile.recognized_columns.get("provider")
+    product_col = profile.recognized_columns.get("product")
+    date_col = profile.recognized_columns.get("date") or (profile.date_columns[0] if profile.date_columns else None)
+    revenue_col = profile.recognized_columns.get("revenue")
+    spend_col = profile.recognized_columns.get("spend") or profile.recognized_columns.get("cost")
+    cost_col = profile.recognized_columns.get("cost") or spend_col
+
+    if any(word in q for word in ["rentable", "profit", "ganancia", "utilidad"]) and provider_col and revenue_col and cost_col:
+        chart_df = df.copy()
+        chart_df["profit"] = chart_df[revenue_col] - chart_df[cost_col]
+        st.markdown("#### Profit por proveedor")
+        st.bar_chart(chart_df.groupby(provider_col)["profit"].sum().sort_values(ascending=False).head(10))
+        return True
+
+    if any(word in q for word in ["proveedor", "supplier", "vendor"]) and provider_col and spend_col:
+        st.markdown("#### Spend por proveedor")
+        st.bar_chart(df.groupby(provider_col)[spend_col].sum().sort_values(ascending=False).head(10))
+        return True
+
+    if any(word in q for word in ["producto", "product"]) and product_col and revenue_col:
+        st.markdown("#### Revenue por producto")
+        st.bar_chart(df.groupby(product_col)[revenue_col].sum().sort_values(ascending=False).head(10))
+        return True
+
+    if any(word in q for word in ["tendencia", "trend", "mes", "mensual", "tiempo"]) and date_col and (revenue_col or spend_col):
+        chart_df = df.copy()
+        chart_df["_month"] = pd.to_datetime(chart_df[date_col], errors="coerce", format="mixed").dt.to_period("M").astype(str)
+        values: dict[str, pd.Series] = {}
+        if revenue_col:
+            values["revenue"] = chart_df.groupby("_month")[revenue_col].sum()
+        if spend_col:
+            values["spend"] = chart_df.groupby("_month")[spend_col].sum()
+        st.markdown("#### Tendencia mensual")
+        st.line_chart(pd.DataFrame(values).fillna(0))
+        return True
+
+    return False

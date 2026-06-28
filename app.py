@@ -9,7 +9,7 @@ from src.code_executor import execute_analysis_code, execute_visualization_code,
 from src.error_messages import friendly_error_message
 from src.kpi_engine import answer_question
 from src.validation import validate_dataset
-from src.visualizations import render_custom_chart, render_quick_charts, render_result_chart
+from src.visualizations import render_custom_chart, render_question_fallback_chart, render_quick_charts, render_result_chart
 
 
 st.set_page_config(page_title="ProcureAI Insights", page_icon="📊", layout="wide")
@@ -151,7 +151,7 @@ if st.button("Analizar", type="primary"):
         st.markdown("### Visualización personalizada")
         if custom_chart:
             render_custom_chart(custom_chart.chart_data, custom_chart.chart_type, custom_chart.chart_title)
-        else:
+        elif not render_question_fallback_chart(df, profile, final_question):
             render_result_chart(serialized_output, final_question)
 
     st.markdown("### Detalles calculados")
