@@ -3,13 +3,13 @@ from __future__ import annotations
 import pandas as pd
 import streamlit as st
 
-from src.ai_client import create_query_plan, generate_analysis_code, has_api_key, polish_answer
+from src.ai_client import create_query_plan, generate_analysis_code, generate_visualization_code, has_api_key, polish_answer
 from src.data_loader import load_file, profile_dataset
-from src.code_executor import execute_analysis_code, serialize_result
+from src.code_executor import execute_analysis_code, execute_visualization_code, serialize_result
 from src.error_messages import friendly_error_message
 from src.kpi_engine import answer_question
 from src.validation import validate_dataset
-from src.visualizations import render_quick_charts, render_result_chart
+from src.visualizations import render_custom_chart, render_quick_charts, render_result_chart
 
 
 st.set_page_config(page_title="ProcureAI Insights", page_icon="📊", layout="wide")
@@ -85,7 +85,9 @@ if st.button("Analizar", type="primary"):
         st.stop()
 
     generated_code = None
+    generated_chart_code = None
     serialized_output = None
+    custom_chart = None
     with st.spinner("Generando código, ejecutando análisis y preparando insight..."):
         if has_api_key():
             try:
@@ -98,6 +100,16 @@ if st.button("Analizar", type="primary"):
                     "raw_result": serialized_output,
                     "insight": code_result.insight,
                 }
+
+                try:
+                    generated_chart_code = generate_visualization_code(final_question, df, profile, serialized_output)
+                    custom_chart = execute_visualization_code(df, generated_chart_code)
+                    details["generated_chart_code"] = generated_chart_code
+                    details["chart_type"] = custom_chart.chart_type
+                    details["chart_title"] = custom_chart.chart_title
+                except Exception as chart_exc:
+                    details["chart_warning"] = friendly_error_message(chart_exc, context="question")
+
                 base_answer = code_result.insight or f"Resultado calculado: {serialized_output}"
                 answer = polish_answer(final_question, base_answer, details)
                 result_payload = {"intent": "generated_code", "details": details}
@@ -123,6 +135,10 @@ if st.button("Analizar", type="primary"):
         with st.expander("Ver código pandas generado por GPT"):
             st.code(generated_code, language="python")
 
+    if generated_chart_code:
+        with st.expander("Ver código de gráfica generado por GPT"):
+            st.code(generated_chart_code, language="python")
+
     if serialized_output is not None:
         st.markdown("### Resultado calculado")
         if isinstance(serialized_output, list):
@@ -132,14 +148,17 @@ if st.button("Analizar", type="primary"):
         else:
             st.write(serialized_output)
 
-        st.markdown("### Visualización del resultado")
-        render_result_chart(serialized_output, final_question)
+        st.markdown("### Visualización personalizada")
+        if custom_chart:
+            render_custom_chart(custom_chart.chart_data, custom_chart.chart_type, custom_chart.chart_title)
+        else:
+            render_result_chart(serialized_output, final_question)
 
     st.markdown("### Detalles calculados")
     st.json(result_payload)
 
 st.divider()
-st.markdown("#### Gráficas rápidas")
+st.markdown("#### Dashboard general")
 render_quick_charts(df, profile)
 
 st.divider()

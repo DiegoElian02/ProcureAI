@@ -18,7 +18,7 @@ ProcureAI Insights es un chatbot en Streamlit para analizar archivos estructurad
   - Filtros temporales como “profit de marzo” o “revenue de 2026”.
 - Con OpenAI, generación de código pandas para extraer la información solicitada, ejecución validada de ese código y redacción final del insight. Sin API key, fallback determinístico para KPIs comunes.
 - Mensajes de error claros y accionables cuando el archivo o la pregunta no puedan procesarse.
-- Gráficas rápidas de tendencia mensual y gasto por proveedor, más visualización de resultados cuando la pregunta solicita tendencia o comparación.
+- Dashboard general con tendencia mensual y gasto por proveedor, más gráficas personalizadas generadas por GPT según la pregunta del usuario.
 
 ## Estructura del proyecto
 
@@ -28,7 +28,7 @@ ProcureAI/
 ├── data/
 │   └── sample_procurement_data.csv # Dataset de prueba
 ├── src/
-│   ├── ai_client.py               # Generación de código con OpenAI y redacción ejecutiva
+│   ├── ai_client.py               # Generación de código de análisis/gráfica con OpenAI y redacción ejecutiva
 │   ├── code_executor.py           # Validador/ejecutor del código pandas generado
 │   ├── error_messages.py          # Catálogo de errores claros para usuario
 │   ├── config.py                  # Lectura de secrets/env vars
@@ -85,6 +85,10 @@ OPENAI_MODEL = "gpt-4o-mini"
 
 > La app también funciona sin API key usando el motor local de KPIs. Con OpenAI, GPT genera código pandas específico para la pregunta, la app valida que no use imports, archivos, red, funciones/clases ni nombres peligrosos, y luego ejecuta ese código contra una copia del DataFrame cargado.
 
+### Visualizaciones personalizadas
+
+Cuando la app tiene `OPENAI_API_KEY`, GPT genera dos piezas de código separadas: una para calcular el resultado y otra para preparar `chart_data`, `chart_type` y `chart_title`. La app valida y ejecuta ambas piezas de código contra una copia del DataFrame, y luego renderiza una gráfica relacionada con la pregunta específica.
+
 ## Troubleshooting
 
 ### Error `Client.__init__() got an unexpected keyword argument 'proxies'`
@@ -122,5 +126,5 @@ La detección de fechas solo intenta parsear columnas cuyo nombre parece represe
 | HU-04 | Respuestas breves, claras y orientadas a decisiones de negocio. |
 | HU-05 | Validación automática de columnas mínimas, errores bloqueantes y advertencias de columnas recomendadas. |
 | HU-06 | Catálogo de errores claros, breves y accionables para archivo, API key, columnas y preguntas. |
-| HU-07 | Gráficas rápidas de tendencia mensual y gasto por proveedor; visualización de resultados comparativos solicitados. |
+| HU-07 | Gráficas personalizadas generadas por GPT para la pregunta, con fallback a visualizaciones simples y dashboard general. |
 | HU-04R | Prompt de respuesta refinado con respuesta directa, insight de negocio y recomendación accionable. |

@@ -47,13 +47,21 @@ class CodeExecutionResult:
     insight: str | None
 
 
-def _validate_code(code: str) -> None:
+@dataclass(frozen=True)
+class VisualizationExecutionResult:
+    code: str
+    chart_data: Any
+    chart_type: str
+    chart_title: str | None
+
+
+def _validate_code(code: str, required_variable: str = "result") -> None:
     """Validate generated code before execution."""
     if "__" in code:
         raise ValueError("El código generado contiene acceso dunder no permitido.")
 
     tree = ast.parse(code, mode="exec")
-    assigns_result = False
+    assigns_required_variable = False
 
     for node in ast.walk(tree):
         if isinstance(node, (ast.Import, ast.ImportFrom, ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.Lambda)):
@@ -67,15 +75,17 @@ def _validate_code(code: str) -> None:
         if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id in BLOCKED_NAMES:
             raise ValueError(f"El código generado intenta llamar una función no permitida: {node.func.id}.")
         if isinstance(node, ast.Assign):
-            assigns_result = assigns_result or any(isinstance(target, ast.Name) and target.id == "result" for target in node.targets)
+            assigns_required_variable = assigns_required_variable or any(
+                isinstance(target, ast.Name) and target.id == required_variable for target in node.targets
+            )
 
-    if not assigns_result:
-        raise ValueError("El código generado debe asignar la variable `result`.")
+    if not assigns_required_variable:
+        raise ValueError(f"El código generado debe asignar la variable `{required_variable}`.")
 
 
 def execute_analysis_code(df: pd.DataFrame, code: str) -> CodeExecutionResult:
     """Execute validated pandas code against a defensive copy of the uploaded DataFrame."""
-    _validate_code(code)
+    _validate_code(code, required_variable="result")
     local_vars: dict[str, Any] = {"df": df.copy(), "pd": pd, "result": None, "insight": None}
     global_vars = {"__builtins__": ALLOWED_BUILTINS}
     exec(compile(code, "<openai_analysis>", "exec"), global_vars, local_vars)
@@ -85,6 +95,35 @@ def execute_analysis_code(df: pd.DataFrame, code: str) -> CodeExecutionResult:
         raise ValueError("El código generado no produjo ningún resultado en `result`.")
 
     return CodeExecutionResult(code=code, result=result, insight=local_vars.get("insight"))
+
+
+def execute_visualization_code(df: pd.DataFrame, code: str) -> VisualizationExecutionResult:
+    """Execute validated pandas code that prepares chart data for Streamlit."""
+    _validate_code(code, required_variable="chart_data")
+    local_vars: dict[str, Any] = {
+        "df": df.copy(),
+        "pd": pd,
+        "chart_data": None,
+        "chart_type": "bar",
+        "chart_title": None,
+    }
+    global_vars = {"__builtins__": ALLOWED_BUILTINS}
+    exec(compile(code, "<openai_visualization>", "exec"), global_vars, local_vars)
+
+    chart_data = local_vars.get("chart_data")
+    if chart_data is None:
+        raise ValueError("El código generado no produjo datos de gráfica en `chart_data`.")
+
+    chart_type = str(local_vars.get("chart_type") or "bar").lower()
+    if chart_type not in {"bar", "line", "area", "scatter"}:
+        chart_type = "bar"
+
+    return VisualizationExecutionResult(
+        code=code,
+        chart_data=chart_data,
+        chart_type=chart_type,
+        chart_title=local_vars.get("chart_title"),
+    )
 
 
 def serialize_result(result: Any) -> Any:

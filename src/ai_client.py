@@ -75,6 +75,54 @@ def generate_analysis_code(question: str, df: pd.DataFrame, profile: DatasetProf
     return code.strip().removeprefix("```python").removeprefix("```").removesuffix("```").strip()
 
 
+def generate_visualization_code(
+    question: str,
+    df: pd.DataFrame,
+    profile: DatasetProfile,
+    analysis_result: Any | None = None,
+) -> str:
+    """Ask OpenAI to generate pandas code for a question-specific visualization."""
+    response = _client().chat.completions.create(
+        model=get_secret("OPENAI_MODEL", "gpt-4o-mini") or "gpt-4o-mini",
+        temperature=0,
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "Eres un analista de datos experto en visualización para ProcureAI Insights. "
+                    "Genera código pandas que prepare una gráfica directamente relacionada con la pregunta del usuario. "
+                    "Usa exclusivamente el DataFrame `df` ya cargado y pandas como `pd`. "
+                    "No incluyas markdown, explicaciones, imports, lectura/escritura de archivos, llamadas de red, loops, funciones ni clases. "
+                    "El código debe asignar obligatoriamente `chart_data` con una Serie o DataFrame listo para Streamlit. "
+                    "También asigna `chart_type` como uno de: 'bar', 'line', 'area' o 'scatter', y `chart_title` con un título breve. "
+                    "Si la pregunta pide tendencia o tiempo, usa gráfica line y agrupa por mes/fecha. "
+                    "Si pide comparación, ranking, proveedor, producto o categoría, usa gráfica bar y agrupa por la dimensión solicitada. "
+                    "Si necesitas fechas, crea columnas temporales con `pd.to_datetime(..., errors='coerce', format='mixed')`. "
+                    "Usa exactamente los nombres de columnas del esquema."
+                ),
+            },
+            {
+                "role": "user",
+                "content": json.dumps(
+                    {
+                        "question": question,
+                        "dataset_context": _dataset_context(df, profile),
+                        "analysis_result": analysis_result,
+                        "valid_examples": [
+                            "df['_date'] = pd.to_datetime(df['date'], errors='coerce', format='mixed')\nchart_data = df.groupby(df['_date'].dt.to_period('M').astype(str))['revenue'].sum()\nchart_type = 'line'\nchart_title = 'Revenue mensual'",
+                            "chart_data = df.groupby('provider')['spend'].sum().sort_values(ascending=False).head(10)\nchart_type = 'bar'\nchart_title = 'Top proveedores por spend'",
+                        ],
+                    },
+                    ensure_ascii=False,
+                    default=str,
+                ),
+            },
+        ],
+    )
+    code = response.choices[0].message.content or ""
+    return code.strip().removeprefix("```python").removeprefix("```").removesuffix("```").strip()
+
+
 def create_query_plan(question: str, df: pd.DataFrame, profile: DatasetProfile) -> dict[str, Any]:
     """Ask OpenAI to convert a natural-language question into a safe JSON query plan."""
     response = _client().chat.completions.create(

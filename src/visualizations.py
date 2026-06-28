@@ -68,3 +68,30 @@ def render_result_chart(serialized_output: Any, question: str) -> None:
         numeric_cols = chart_df.select_dtypes(include="number").columns.tolist()
         if numeric_cols:
             st.bar_chart(chart_df[numeric_cols])
+
+
+def render_custom_chart(chart_data: Any, chart_type: str, chart_title: str | None = None) -> None:
+    """Render custom chart data generated for the user's specific question."""
+    if chart_title:
+        st.markdown(f"#### {chart_title}")
+
+    if isinstance(chart_data, pd.Series):
+        data = chart_data
+    elif isinstance(chart_data, pd.DataFrame):
+        data = chart_data
+    elif isinstance(chart_data, dict):
+        data = pd.Series(chart_data)
+    elif isinstance(chart_data, list):
+        data = pd.DataFrame(chart_data)
+    else:
+        st.info("El resultado no tiene una forma compatible para graficar.")
+        return
+
+    if chart_type == "line":
+        st.line_chart(data)
+    elif chart_type == "area":
+        st.area_chart(data)
+    elif chart_type == "scatter":
+        st.scatter_chart(data)
+    else:
+        st.bar_chart(data)
