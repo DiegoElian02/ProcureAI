@@ -6,7 +6,10 @@ import streamlit as st
 from src.ai_client import create_query_plan, generate_analysis_code, has_api_key, polish_answer
 from src.data_loader import load_file, profile_dataset
 from src.code_executor import execute_analysis_code, serialize_result
+from src.error_messages import friendly_error_message
 from src.kpi_engine import answer_question
+from src.validation import validate_dataset
+from src.visualizations import render_quick_charts, render_result_chart
 
 
 st.set_page_config(page_title="ProcureAI Insights", page_icon="📊", layout="wide")
@@ -33,10 +36,24 @@ try:
     df = load_file(uploaded_file, uploaded_file.name)
     profile = profile_dataset(df)
 except Exception as exc:
-    st.error(str(exc))
+    st.error(friendly_error_message(exc, context="file"))
     st.stop()
 
-st.success(f"Archivo cargado correctamente: {profile.rows} filas y {len(profile.columns)} columnas.")
+validation = validate_dataset(profile)
+if validation.is_valid:
+    st.success(f"Archivo cargado correctamente: {profile.rows} filas y {len(profile.columns)} columnas. Validación positiva: el dataset tiene métricas suficientes para analizar.")
+else:
+    st.error("El archivo fue cargado, pero no tiene las columnas mínimas para analizar KPIs.")
+
+for issue in validation.issues:
+    message = f"**{issue.title}:** {issue.message} Recomendación: {issue.recommendation}"
+    if issue.severity == "error":
+        st.error(message)
+    else:
+        st.warning(message)
+
+if not validation.is_valid:
+    st.stop()
 
 col1, col2 = st.columns([1, 1])
 with col1:
@@ -64,7 +81,7 @@ final_question = question.strip() or selected_example
 
 if st.button("Analizar", type="primary"):
     if not final_question:
-        st.warning("Escribe o selecciona una pregunta para continuar.")
+        st.warning("Escribe una pregunta accionable. Ejemplo: '¿Cuál fue el spend por proveedor en mayo?' o selecciona una pregunta de prueba.")
         st.stop()
 
     generated_code = None
@@ -85,7 +102,7 @@ if st.button("Analizar", type="primary"):
                 answer = polish_answer(final_question, base_answer, details)
                 result_payload = {"intent": "generated_code", "details": details}
             except Exception as exc:
-                st.warning(f"No se pudo completar el análisis con código generado por OpenAI. Se usará el motor local. Detalle: {exc}")
+                st.warning(f"{friendly_error_message(exc, context='question')} Se usará el motor local como respaldo.")
                 query_plan = None
                 try:
                     query_plan = create_query_plan(final_question, df, profile)
@@ -115,8 +132,15 @@ if st.button("Analizar", type="primary"):
         else:
             st.write(serialized_output)
 
+        st.markdown("### Visualización del resultado")
+        render_result_chart(serialized_output, final_question)
+
     st.markdown("### Detalles calculados")
     st.json(result_payload)
+
+st.divider()
+st.markdown("#### Gráficas rápidas")
+render_quick_charts(df, profile)
 
 st.divider()
 st.markdown("#### KPIs rápidos")

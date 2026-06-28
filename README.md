@@ -7,6 +7,7 @@ ProcureAI Insights es un chatbot en Streamlit para analizar archivos estructurad
 - Carga de archivos CSV, XLSX o XLS.
 - Detección básica de columnas principales como `provider`, `product`, `revenue`, `cost` y `spend`.
 - Vista previa del dataset cargado.
+- Validación previa de columnas críticas y advertencias sobre columnas recomendadas.
 - Preguntas en lenguaje natural para obtener insights de negocio, incluyendo consultas abiertas que GPT traduce a código pandas.
 - Cálculo de KPIs mínimos:
   - Profit.
@@ -16,6 +17,8 @@ ProcureAI Insights es un chatbot en Streamlit para analizar archivos estructurad
   - Productos con mejor desempeño por revenue.
   - Filtros temporales como “profit de marzo” o “revenue de 2026”.
 - Con OpenAI, generación de código pandas para extraer la información solicitada, ejecución validada de ese código y redacción final del insight. Sin API key, fallback determinístico para KPIs comunes.
+- Mensajes de error claros y accionables cuando el archivo o la pregunta no puedan procesarse.
+- Gráficas rápidas de tendencia mensual y gasto por proveedor, más visualización de resultados cuando la pregunta solicita tendencia o comparación.
 
 ## Estructura del proyecto
 
@@ -27,9 +30,12 @@ ProcureAI/
 ├── src/
 │   ├── ai_client.py               # Generación de código con OpenAI y redacción ejecutiva
 │   ├── code_executor.py           # Validador/ejecutor del código pandas generado
+│   ├── error_messages.py          # Catálogo de errores claros para usuario
 │   ├── config.py                  # Lectura de secrets/env vars
 │   ├── data_loader.py             # Carga y perfilado de datos
-│   └── kpi_engine.py              # Interpretación simple y cálculo de KPIs
+│   ├── kpi_engine.py              # Interpretación simple y cálculo de KPIs
+│   ├── validation.py              # Validación automática del dataset
+│   └── visualizations.py          # Gráficas básicas de tendencias/comparaciones
 ├── .streamlit/
 │   └── secrets.toml.example       # Plantilla para API key
 ├── .env.example                   # Alternativa local para variables de entorno
@@ -114,3 +120,7 @@ La detección de fechas solo intenta parsear columnas cuyo nombre parece represe
 | HU-02 | Campo de pregunta, preguntas de prueba y generación de código pandas con OpenAI, con fallback por palabras clave/plan local. |
 | HU-03 | Cálculo de profit, spend, revenue y gasto por proveedor. |
 | HU-04 | Respuestas breves, claras y orientadas a decisiones de negocio. |
+| HU-05 | Validación automática de columnas mínimas, errores bloqueantes y advertencias de columnas recomendadas. |
+| HU-06 | Catálogo de errores claros, breves y accionables para archivo, API key, columnas y preguntas. |
+| HU-07 | Gráficas rápidas de tendencia mensual y gasto por proveedor; visualización de resultados comparativos solicitados. |
+| HU-04R | Prompt de respuesta refinado con respuesta directa, insight de negocio y recomendación accionable. |

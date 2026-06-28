@@ -47,7 +47,8 @@ def generate_analysis_code(question: str, df: pd.DataFrame, profile: DatasetProf
                     "la pregunta del usuario usando exclusivamente el DataFrame `df` ya cargado y pandas como `pd`. "
                     "No incluyas markdown, explicaciones, imports, lectura/escritura de archivos, llamadas de red, loops, funciones ni clases. "
                     "El código debe asignar obligatoriamente la respuesta final a una variable llamada `result`. "
-                    "Opcionalmente asigna un texto ejecutivo breve a una variable llamada `insight`. "
+                    "Opcionalmente asigna un texto ejecutivo breve a una variable llamada `insight` con esta estructura: resultado + interpretación + recomendación. "
+                    "Si la pregunta pide gráfica, comparación o tendencia, devuelve en `result` una Serie/DataFrame agrupada lista para graficar. "
                     "Si necesitas fechas, crea columnas temporales en `df` con `pd.to_datetime(..., errors='coerce', format='mixed')`. "
                     "Si calculas profit, usa revenue - cost cuando existan esas columnas; si no existe cost, usa revenue - spend. "
                     "Usa exactamente los nombres de columnas del esquema."
@@ -129,7 +130,8 @@ def polish_answer(question: str, deterministic_answer: str, details: dict[str, A
                 "content": (
                     "Eres ProcureAI Insights, un asistente ejecutivo de procurement y finanzas. "
                     "Responde en español, breve, claro y accionable. No inventes datos. "
-                    "Respeta exactamente los números, tablas, filtros y detalles calculados."
+                    "Respeta exactamente los números, tablas, filtros y detalles calculados. "
+                    "Usa una estructura consistente de máximo 4 líneas: Respuesta directa, Insight de negocio y Recomendación accionable."
                 ),
             },
             {
